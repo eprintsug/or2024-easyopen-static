@@ -27,6 +27,16 @@ static_site.pl [OPTIONS] repository_id output_dir
 
 Relative path the generated site should live below.
 
+Intended format:
+./OPEN.html
+./content/		[the full-texts]
+./metadata/		[different metadata represenations of the items]
+./resources/html/	[user interface]
+./resources/css/	[umm, stylesheets?]
+./resources/js/		[ermmm, some ECMAScript? ;P)
+./resources/img/	[graphics]
+./resources/bin/	[???]
+
 =back
 
 =cut
@@ -55,8 +65,15 @@ pod2usage( 1 ) if $opt_help;
 pod2usage( -exitstatus => 0, -verbose => 2 ) if $opt_man;
 pod2usage( 2 ) if @ARGV != 2;
 
-$opt_item_template ||= 'default.xml';
-$opt_view_template ||= 'default.xml';
+
+if( !defined $opt_item_template || $opt_item_template eq '' )
+{
+	$opt_item_template = "default";
+}
+if( !defined $opt_view_template ||  $opt_view_template eq '' )
+{
+	$opt_view_template = "default";
+}
 
 my $repo = EPrints->new->repository( $ARGV[0] )
 	or die "Unknown repository '$ARGV[0]'\n";
@@ -65,10 +82,13 @@ my $output_dir = $ARGV[1];
 	die "'$output_dir' is not a directory\n" if !-d $output_dir;
 $output_dir =~ s! /+$ !!x;
 
-$repo->{config}->{rel_path} = $opt_easyopen_root;
-$repo->{config}->{http_url} = $opt_easyopen_root;
+$repo->{config}->{rel_path} = "$opt_easyopen_root/resources";
+$repo->{config}->{http_url} = "$opt_easyopen_root/resources";
+
+$repo->{config}->{easyopen_metadata_path} = "$output_dir/metadata";
 
 my $xml_plugin = $repo->plugin( "Export::XML" );
+my $dc_plugin = $repo->plugin( "Export::DC" );
 
 # disable import/export/screen plugins
 foreach my $type (qw( Import Export Screen ))
@@ -123,6 +143,7 @@ if( $views )
 	my $views = $repo->config( "browse_views" );
 	foreach my $view (@$views)
 	{
+		$view->{template} = $opt_view_template if (!defined $view->{template} && defined $opt_view_template );
 		$view = EPrints::Update::Views->new(
 			repository => $repo,
 			view => $view,
@@ -159,8 +180,8 @@ $list->map(sub {
 #	print STDERR sprintf("eprint %.0f%%\r",
 #		100 * $i++ / $list->count
 #	);
-
-	my $base = "$output_dir/".$eprint->id;
+	#my $base = "$output_dir/".$eprint->id;
+	my $base = $repo->{config}->{easyopen_metadata_path}."/".$eprint->id;
 	mkdir($base) if !-d $base;
 
 	my( $page, $title, $links, $template ) = $eprint->render_preview;
@@ -178,12 +199,23 @@ $list->map(sub {
 		"utf-8.page" => scalar( $repo->xhtml->to_xhtml( $page ) ),
 		"utf-8.head" => scalar( $repo->xhtml->to_xhtml( $links ) ),
 	);
-	open(my $fh, ">:utf8", "$base/eprint.xml");
+
+	my $fh;
+	# EPrints XML representation
+	open( $fh, ">:utf8", "$base/eprint.xml" );
 	$xml_plugin->output_dataobj( $eprint,
 		dataset => $eprint->{dataset},
 		fh => $fh,
 	);
-	close($fh);
+	close( $fh );
+
+	# Simple DC representation
+	open( $fh, ">:utf8", "$base/DC.txt" );
+	$dc_plugin->output_dataobj( $eprint,
+		dataset => $eprint->{dataset},
+		fh => $fh,
+	);
+	close( $fh );
 
 	my $docs = $eprint->value( "documents" );
 	$eprint->set_value( "documents", $docs );
@@ -252,6 +284,6 @@ sub generate_html
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 EOH
 
-	my $page = $repo->prepare_page( \%parts, page_id=>"static", template=> $opt_item_template, );
+	my $page = $repo->prepare_page( \%parts, page_id=>"static", template=> "$opt_item_template", );
 	$page->write_to_file( "$filepath.html", {} );
 }

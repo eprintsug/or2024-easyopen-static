@@ -252,6 +252,6 @@ sub generate_html
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 EOH
 
-	my $page = $repo->prepare_page( \%parts, page_id=>"static", template=> $opts_item_template, );
+	my $page = $repo->prepare_page( \%parts, page_id=>"static", template=> $opt_item_template, );
 	$page->write_to_file( "$filepath.html", {} );
 }

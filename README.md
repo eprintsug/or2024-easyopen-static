@@ -1,6 +1,8 @@
 # or2024-easyopen-static
 Open Repositories 2024 - Super - Simple - Static - Sustainable
 
+Easy Open Specification: https://docs.google.com/document/d/1y0Cu5cSia6rlRotnfdU_wcrZUL3DnjXx0MUah--_7-Y/edit?usp=sharing
+
 ### EPrints to EasyOPEN static export
 
 1. find a place to start
